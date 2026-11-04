@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام المحاسبة وإدارة المشاريع المشتركة | Cloud ERP</title>
+    <!-- خط تجوال العربي النظيف -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap"
+        rel="stylesheet">
+    <!-- Font Awesome الأيقونات -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Chart.js للرسوم البيانية -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Firebase SDK (Compat Version for seamless browser execution) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <!-- HTML5 QR Code & Barcode Scanner -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <link rel="stylesheet" href="stayl.css">
+</head>
+
+<body>
+
+    <!-- شريط تنبيه انقطاع الإنترنت لمنع الكتابة غير المتصلة -->
+    <div id="offlineNoticeBanner" style="display:none; background:#dc2626; color:#fff; text-align:center; padding:10px 16px; font-weight:700; font-size:0.88rem; z-index:9999999; position:sticky; top:0; box-shadow:0 4px 12px rgba(220,38,38,0.35);">
+        <i class="fa-solid fa-triangle-exclamation"></i> تنبيه أمني: انقطع الاتصال بالإنترنت! تم قفل وإيقاف كافة عمليات الحفظ والكتابة مؤقتاً لحماية سلامة السجلات السحابية.
+    </div>
+
+    <!-- حاوية التطبيق (مخفية بالكامل ولا تظهر أو تُحمّل أي بيانات إلا بعد تسجيل الدخول) -->
+    <div class="app-container" id="appContainer" style="display: none;">
+        <!-- القائمة الجانبية (Sidebar) -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="brand-icon">
+                    <i class="fa-solid fa-layer-group"></i>
+                </div>
+                <div>
+                    <div class="brand-title">نظام ERP السحابي</div>
+                    <div class="brand-subtitle" id="sidebarSub">إدارة مشروعين بحساب مشترك</div>
+                </div>
+            </div>
+
+            <nav class="sidebar-menu">
+                <div class="menu-label">الرئيسية والعمليات</div>
+                <a class="menu-item active" data-page="dashboard"><i class="fa-solid fa-chart-pie"></i> لوحة التحكم</a>
+                <a class="menu-item" data-page="projects"><i class="fa-solid fa-briefcase"></i> إدارة المشاريع</a>
+                <a class="menu-item" data-page="sales"><i class="fa-solid fa-cart-shopping"></i> المبيعات والفواتير</a>
+                <a class="menu-item" data-page="purchases"><i class="fa-solid fa-truck-ramp-box"></i> المشتريات
+                    والتوريد</a>
+                <a class="menu-item" data-page="inventory"><i class="fa-solid fa-boxes-stacked"></i> المخزون
+                    والأصناف</a>
+
+                <div class="menu-label">المالية والحسابات المشتركة</div>
+                <a class="menu-item" data-page="accounts"><i class="fa-solid fa-building-columns"></i> البنوك والمحافظ
+                    الأربعة</a>
+                <a class="menu-item" data-page="transfers"><i class="fa-solid fa-money-bill-transfer"></i> تسويات
+                    وتحويلات المشاريع</a>
+                <a class="menu-item" data-page="customers"><i class="fa-solid fa-users"></i> العملاء والذمم</a>
+                <a class="menu-item" data-page="suppliers"><i class="fa-solid fa-truck-field"></i> الموردون
+                    والمستحقات</a>
+
+                <div class="menu-label">المحاسبة والتقارير</div>
+                <a class="menu-item" data-page="accounting" id="menuItemAccounting"><i class="fa-solid fa-scale-balanced"></i> دفتر القيود
+                    والميزان</a>
+                <a class="menu-item" data-page="reports" id="menuItemReports"><i class="fa-solid fa-file-invoice-dollar"></i> التقارير
+                    والأرباح والخسائر</a>
+
+                <div class="menu-label admin-only-element" id="menuLabelAdmin" style="display:none;">إدارة النظام</div>
+                <a class="menu-item admin-only-element" data-page="users" id="menuItemUsers" style="display:none;"><i class="fa-solid fa-users-gear"></i> إدارة الموظفين والصلاحيات</a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="d-flex align-items-center gap-2" style="overflow:hidden; flex:1;">
+                    <i class="fa-solid fa-circle-user fa-lg text-primary"></i>
+                    <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                        <div id="sidebarUserName" style="font-weight: 700; font-size: 0.85rem;">زائر</div>
+                        <div id="sidebarUserRole" style="font-size: 0.72rem; color: var(--text-muted);">تسجيل الدخول مطلوب</div>
+                    </div>
+                </div>
+                <div class="d-flex gap-1 align-items-center">
+                    <button class="btn btn-sm btn-outline text-danger" id="logoutBtn" onclick="App.logout()" title="تسجيل الخروج"><i class="fa-solid fa-right-from-bracket"></i></button>
+                    <button class="btn btn-sm btn-outline" id="themeToggleBtn" title="الوضع الليلي"><i class="fa-solid fa-moon"></i></button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- خلفية معتمة للهواتف عند فتح القائمة -->
+        <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+        <!-- المنطقة الرئيسية للتطبيق -->
+        <div class="main-wrapper">
+            <!-- الشريط العلوي -->
+            <header class="topbar">
+                <div class="topbar-right">
+                    <button class="toggle-sidebar-btn" id="sidebarToggleBtn"><i class="fa-solid fa-bars"></i></button>
+                    <!-- محدد نطاق العمل (المشروع 1، المشروع 2، أو الإدارة الموحدة) -->
+                    <div class="project-switch-badge">
+                        <i class="fa-solid fa-diagram-project text-primary"></i>
+                        <select id="projectSelectScope">
+                            <option value="all">🌐 الإدارة الموحدة (المشروعين معاً)</option>
+                            <option value="proj_01"> المشروع 1 </option>
+                            <option value="proj_02"> المشروع 2 </option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="topbar-left">
+                    <!-- أيقونة وزر إدارة حجم السيولة وتحديد الحساب الأولي المعتمد -->
+                    <button class="liquidity-quick-btn" id="liquidityQuickBtn" onclick="App.openLiquidityModal()"
+                        title="تحديد رصيد السيولة واعتماد الحساب الأولي">
+                        <i class="fa-solid fa-coins"></i>
+                        <span>السيولة والحساب الأولي</span>
+                    </button>
+                    <div class="cloud-pill" id="cloudStatusPill">
+                        <span class="pulse-dot"></span>
+                        <span id="cloudStatusText">متصل بالسحابة (Firebase)</span>
+                    </div>
+                    <button class="btn btn-sm btn-primary" onclick="App.openSaleModal()"><i
+                            class="fa-solid fa-plus"></i> فاتورة مبيعات</button>
+                </div>
+            </header>
+
+            <!-- حاوية الصفحات التفاعلية -->
+            <main class="content-area">
+
+                <!-- 1. لوحة التحكم (Dashboard) -->
+                <section class="page-view active" id="page-dashboard">
+                    <div class="page-header">
+                        <div>
+                            <h1 class="page-title">لوحة التحكم والمؤشرات اللحظية</h1>
+                            <p class="page-desc">متابعة شاملة للمبيعات والمخزون وتوزيع أموال الحسابات البنكية المشتركة
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- مؤشرات الأداء السريعة (KPIs) -->
+                    <div class="kpi-grid">
+                        <div class="kpi-card">
+                            <div class="kpi-icon-box blue"><i class="fa-solid fa-arrow-trend-up"></i></div>
+                            <div class="kpi-info">
+                                <span>إجمالي المبيعات</span>
+                                <h3 id="dashTotalSales">0.00 ₪</h3>
+                            </div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-icon-box green"><i class="fa-solid fa-sack-dollar"></i></div>
+                            <div class="kpi-info">
+                                <span>صافي الأرباح المحققة</span>
+                                <h3 id="dashNetProfit">0.00 ₪</h3>
+                            </div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-icon-box teal"><i class="fa-solid fa-boxes-stacked"></i></div>
+                            <div class="kpi-info">
+                                <span>قيمة المخزون (بالتكلفة)</span>
+                                <h3 id="dashInventoryVal">0.00 ₪</h3>
+                            </div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-icon-box amber"><i class="fa-solid fa-building-columns"></i></div>
+                            <div class="kpi-info">
+                                <span>السيولة في البنوك والمحافظ</span>
+                                <h3 id="dashTotalLiquidity">0.00 ₪</h3>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- الرسوم البيانية -->
+                    <div class="charts-row">
+                        <div class="card">
+                            <div class="card-header">
+                                <span><i class="fa-solid fa-chart-column text-primary"></i> مقارنة الأداء بين
+                                    المشروعين</span>
+                            </div>
+                            <div class="card-body">
+                                <div style="height: 280px;">
+                                    <canvas id="projectComparisonChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <span><i class="fa-solid fa-chart-pie text-secondary"></i> توزيع وسائل الدفع</span>
+                            </div>
+                            <div class="card-body">
+                                <div style="height: 280px;">
+                                    <canvas id="paymentMethodsChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- جدول آخر العمليات -->
+                    <div class="card">
+                        <div class="card-header">
+                            <span><i class="fa-solid fa-clock-rotate-left"></i> آخر فواتير المبيعات الصادرة</span>
+                            <button class="btn btn-sm btn-outline" onclick="App.navigateTo('sales')">عرض الكل</button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>رقم الفاتورة</th>
+                                        <th>التاريخ</th>
+                                        <th>المشروع</th>
+                                        <th>العميل</th>
+                                        <th>إجمالي الفاتورة</th>
+                                        <th>طرق السداد</th>
+                                        <th>الحالة</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dashRecentSalesBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- إدارة المشاريع (Projects) -->
+                <section class="page-view" id="page-projects">
+                    <div class="page-header">
+                        <div>
+                            <h1 class="page-title">إدارة المشاريع المستقلة</h1>
+                            <p class="page-desc">إضافة مشاريع جديدة أو تعديلها أو مسحها ومتابعة أداء كل مشروع بشكل مستقل
+                            </p>
+                        </div>
+                        <button class="btn btn-primary" onclick="App.openProjectModal()"><i
+                                class="fa-solid fa-plus"></i> إضافة مشروع جديد</button>
+                    </div>
+
+                    <div class="grid-2" id="projectsCardsList">
+                        <!-- بطاقات المشاريع تُنشأ ديناميكياً -->
+                    </div>
+                </section>
+
+                <!-- 2. المبيعات ونقاط البيع (Sales) -->
+                <section class="page-view" id="page-sales">
+                    <div class="page-header">
+                        <div>
+                            <h1 class="page-title">إدارة فواتير المبيعات ونقاط البيع</h1>
+                            <p class="page-desc">إصدار فواتير بيع مع دعم الدفع المختلط بين الحسابات وتحديث المخزون
+                                فورياً</p>
+                        </div>
+                        <button class="btn btn-primary" onclick="App.openSaleModal()"><i
+                                class="fa-solid fa-cart-plus"></i> إنشاء فاتورة جديدة</button>
+                    </div>
+
+                    <div class="card">
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>رقم الفاتورة</th>
+                                        <th>التاريخ</th>
+                                        <th>المشروع</th>
+                                        <th>العميل</th>
+                                        <th>الأصناف</th>
+                                        <th>الإجمالي</th>
+                                        <th>المسدد</th>
+                                        <th>طريقة الدفع والمرجع</th>
+                                        <th>المتبقي (ذمة)</th>
+                                        <th>إجراءات</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="salesTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 3. المشتريات والتوريد (Purchases) -->
+                <section class="page-view" id="page-purchases">
+                    <div class="page-header">
+                        <div>
+                            <h1 class="page-title">إدارة المشتريات وتوريد البضاعة</h1>
+                            <p class="page-desc">تسجيل المشتريات وتحديث المخزون ومتوسط التكلفة المرجح (WAC) آلياً</p>
+                        </div>
+                        <button class="btn btn-primary" onclick="App.openPurchaseModal()"><i
+                                class="fa-solid fa-plus"></i> فاتورة شراء وتوريد</button>
+                    </div>
+
+                    <div class="card">
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>رقم الفاتورة</th>
+                                        <th>التاريخ</th>
+                                        <th>المشروع</th>
+                                        <th>المورد</th>
+                                        <th>المشتريات / الصنف</th>
+                                        <th>الإجمالي</th>
+                                        <th>المدفوع</th>
+                                        <th>المتبقي للمورد</th>
+                                        <th>الحالة</th>
+                                        <th>إجراءات</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="purchasesTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 4. المخزون والأصناف (Inventory) -->
+                <section class="page-view" id="page-inventory">
+                    <div class="page-header">
+                        <div>
+                            <h1 class="page-title">بطاقات الأصناف والأسعار المتعددة</h1>
+                            <p class="page-desc">تحديد سعر التكلفة والشرائح الثلاثة (مفرق / نصف جملة / جملة) وتتبع
+                                الأرصدة</p>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <input type="text" id="prodSearchInput" class="form-control" style="width: 250px;"
+                                placeholder="بحث بالاسم أو الكود...">
+                            <button class="btn btn-outline" onclick="App.openInventoryScanModal()"><i
+                                    class="fa-solid fa-qrcode"></i> توريد / مسح كيواركود</button>
+                            <button class="btn btn-primary" onclick="App.openProductModal()"><i
+                                    class="fa-solid fa-plus"></i> صنف جديد</button>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>الكود / الباركود</th>
+                                        <th>اسم الصنف والتصنيف</th>
+                                        <th>المشروع التابع</th>
+                                        <th>سعر التكلفة</th>
+                                        <th>مفرق</th>
+                                        <th>نصف جملة</th>
+                                        <th>جملة</th>
+                                        <th>المخزون الحالي</th>
+                                        <th>إجراءات</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="productsTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 5. الحسابات البنكية والمحافظ الأربعة المشتركة (Accounts) -->
+                <section class="page-view" id="page-accounts">
+                    <div class="page-header">
+                        <div>
+                            <h1 class="page-title">الحسابات المالية المشتركة الأربعة</h1>
+                            <p class="page-desc">الحساب البنكي، محفظة PalPay، جوال باي، والخزينة النقدية (تتبع الرصيد
+                                الفعلي وحصة كل مشروع بدقة)</p>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <!-- زر إظهار وإخفاء هذا الجزء -->
+                            <button class="btn btn-outline" id="toggleBankCardsGridBtn"
+                                onclick="App.toggleBankCardsVisibility()">
+                                <i class="fa-solid fa-eye"></i>
+                                <span>عرض بطاقات الحسابات</span>
+                            </button>
+                            <button class="btn btn-amber" onclick="App.openLiquidityModal()"><i
+                                    class="fa-solid fa-coins"></i> ضبط حجم السيولة وتحديد الحساب الأولي</button>
+                        </div>
+                    </div>
+
+                    <!-- هذا الجزء مخفي افتراضياً ويظهر ويختفي بالزر -->
+                    <div class="bank-cards-grid collapsible-hidden" id="bankAccountsCardsGrid">
+                        <!-- تُنشأ بطاقات الحسابات ديناميكياً -->
+                    </div>
+                </section>
+
+                <!-- 6. التحويلات وتسويات المشاريع (Transfers) -->
+                <section class="page-view" id="page-transfers">
+                    <div class="page-header">
+                        <div>
+                            <h1 class="page-title">التحويلات وتسويات المصاريف بين المشروعين</h1>
+                            <p class="page-desc">سداد نفقة أو شحنة نيابة عن المشروع الآخر، والتحويل بين البنوك والمحافظ
+                                دون اختلاط الأرباح</p>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-outline" onclick="App.openTransferModal('bank_internal')"><i
+                                    class="fa-solid fa-right-left"></i> تحويل بين البنوك/المحافظ</button>
+                            <button class="btn btn-primary" onclick="App.openTransferModal('inter_project')"><i
+                                    class="fa-solid fa-arrows-turn-to-dots"></i> سداد مصروف نيابة عن المشروع
+                                الآخر</button>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>رقم الحركة</th>
+                                        <th>التاريخ</th>
+                                        <th>نوع الحركة</th>
+                                        <th>من (الحساب/المشروع)</th>
+                                        <th>إلى (الحساب/المشروع)</th>
+                                        <th>المبلغ</th>
+                                        <th>البيان والتفاصيل</th>
+                                        <th>إجراءات</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="transfersTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 7. العملاء (Customers) -->
+                <section class="page-view" id="page-customers">
+                    <div class="page-header">
+                        <div>
+                            <h1 class="page-title">دليل العملاء والذمم</h1>
+                            <p class="page-desc">متابعة أسماء العملاء وفواتيرهم بدون حفظ بياناتهم في قاعدة البيانات</p>
+                        </div>
+                        <button class="btn btn-primary" onclick="App.openContactModal('customer')"><i
+                                class="fa-solid fa-user-plus"></i> إضافة اسم عميل</button>
+                    </div>
+
+                    <div class="card">
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>اسم العميل</th>
+                                        <th>عدد الفواتير</th>
+                                        <th>إجمالي المبيعات</th>
+                                        <th>المستحق للمشروع 1</th>
+                                        <th>المستحق للمشروع 2</th>
+                                        <th>إجمالي الدين المتبقي</th>
+                                        <th>إجراءات</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="customersTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 8. الموردون (Suppliers) -->
+                <section class="page-view" id="page-suppliers">
+                    <div class="page-header">
+                        <div>
+                            <h1 class="page-title">دليل الموردين والمستحقات الدائنة</h1>
+                            <p class="page-desc">سجل الموردين والأرصدة المستحقة لهم لكل مشروع</p>
+                        </div>
+                        <button class="btn btn-primary" onclick="App.openContactModal('supplier')"><i
+                                class="fa-solid fa-truck"></i> إضافة مورد</button>
+                    </div>
+
+                    <div class="card">
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>اسم المورد</th>
+                                        <th>رقم الهاتف</th>
+                                        <th>العنوان</th>
+                                        <th>مستحقات المشروع 1</th>
+                                        <th>مستحقات المشروع 2</th>
+                                        <th>إجمالي المطلوب</th>
+                                        <th>إجراءات</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="suppliersTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 9. المحاسبة والقيود (Accounting) -->
+                <section class="page-view" id="page-accounting">
+                    <div class="page-header">
+                        <div>
+                            <h1 class="page-title">دفتر القيود اليومية والميزان العام</h1>
+                            <p class="page-desc">القيود المحاسبية المزدوجة المتولدة آلياً وميزان المراجعة المتوازن 100%
+                            </p>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-outline" onclick="App.openJournalEntryModal()"><i
+                                    class="fa-solid fa-plus"></i> إضافة قيد يومية يدوي</button>
+                            <button class="btn btn-primary" onclick="App.openTrialBalanceModal()"><i
+                                    class="fa-solid fa-scale-unbalanced-flip"></i> ميزان المراجعة الشامل</button>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>رقم القيد</th>
+                                        <th>التاريخ</th>
+                                        <th>المشروع</th>
+                                        <th>البيان المحاسبي</th>
+                                        <th>إجمالي المدين</th>
+                                        <th>إجمالي الدائن</th>
+                                        <th>الحالة</th>
+                                        <th>إجراءات</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="journalEntriesTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 10. التقارير المالية (Reports) -->
+                <section class="page-view" id="page-reports">
+                    <div class="page-header">
+                        <div>
+                            <h1 class="page-title">مركز التقارير وقائمة الأرباح والخسائر</h1>
+                            <p class="page-desc">تقارير مقارنة للأداء، تقييم المخزون، وتوزيع السيولة مع تصدير مباشر</p>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-outline" onclick="window.print()"><i class="fa-solid fa-print"></i>
+                                طباعة</button>
+                            <button class="btn btn-primary" onclick="App.exportReportExcel()"><i
+                                    class="fa-solid fa-file-excel"></i> تصدير Excel</button>
+                        </div>
+                    </div>
+
+                    <div class="card p-3 mb-3">
+                        <div class="grid-3">
+                            <div>
+                                <label class="form-label">نوع التقرير:</label>
+                                <select id="repSelectType" class="form-control" onchange="App.generateReport()">
+                                    <option value="profit_loss">📊 تقرير الأرباح والخسائر المقارن (P&L)</option>
+                                    <option value="inventory_val">📦 تقرير تقييم المخزون (بالتكلفة وسعر البيع)</option>
+                                    <option value="bank_flow">🏦 كشف حركة وتوزيع السيولة في الحسابات الأربعة</option>
+                                    <option value="sales_summary">🧾 ملخص المبيعات التفصيلي</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card" id="reportPrintArea">
+                        <div class="card-header" id="reportHeaderTitle">
+                            تقرير الأرباح والخسائر
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table" id="reportOutputTable">
+                                <thead id="reportHead"></thead>
+                                <tbody id="reportContent"></tbody>
+                                <tfoot id="reportFoot"></tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 11. إدارة الموظفين والصلاحيات (للمدير العام فقط) -->
+                <section class="page-view" id="page-users">
+                    <div class="page-header">
+                        <div>
+                            <h1 class="page-title"><i class="fa-solid fa-users-gear text-primary"></i> إدارة الموظفين والصلاحيات</h1>
+                            <p class="page-desc">إنشاء وتعيين الموظفين حسب مشاريعهم مع منح صلاحيات دقيقة ومحددة</p>
+                        </div>
+                        <button class="btn btn-primary" onclick="App.openAddUserModal()">
+                            <i class="fa-solid fa-user-plus"></i> إضافة موظف جديد
+                        </button>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <span><i class="fa-solid fa-id-card-clip"></i> قائمة الموظفين والمستخدمين المصرح لهم</span>
+                            <span class="badge badge-blue" id="usersCountBadge">0 موظف</span>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>اسم الموظف</th>
+                                        <th>اسم المستخدم</th>
+                                        <th>المشروع المخصص</th>
+                                        <th>الصلاحيات الممنوحة</th>
+                                        <th>تاريخ الإنشاء</th>
+                                        <th>إجراءات</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="usersTableBody">
+                                    <tr>
+                                        <td colspan="6" class="text-center py-4 text-muted">لا يوجد موظفون مضافون بعد</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- نافذة منبثقة: فاتورة المبيعات مع الدفع المختلط الصارم -->
+    <div class="modal-overlay" id="saleModal">
+        <div class="modal-card lg">
+            <div class="modal-header">
+                <div class="modal-title"><i class="fa-solid fa-cart-shopping text-primary"></i> فاتورة مبيعات جديدة
+                </div>
+                <button class="modal-close" onclick="App.closeModal('saleModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="grid-3 mb-3">
+                    <div class="form-group">
+                        <label class="form-label">المشروع التابع للفاتورة:</label>
+                        <select id="saleProj" class="form-control" onchange="App.onSaleProjectChanged()"></select>
+                    </div>
+                    <div class="form-group">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label class="form-label mb-0">اسم العميل (فقط الاسم):</label>
+                            <span id="saleCustDueNotice" style="font-size:0.75rem; font-weight:700;"></span>
+                        </div>
+                        <div style="display:flex; gap:4px;">
+                            <input type="text" id="saleCustName" class="form-control"
+                                placeholder="اكتب اسم العميل (أو اتركه ليكون نقدي)..." list="recentCustomersDatalist"
+                                oninput="App.onSaleCustInput()">
+                            <select id="saleCustSelectDropdown" class="form-control"
+                                style="max-width:140px; font-size:0.78rem; padding:0 6px;"
+                                onchange="App.onSelectCustomerDropdown(this.value)" title="قائمة عملاء الذمم">
+                                <option value="">عملاء الذمم...</option>
+                            </select>
+                        </div>
+                        <datalist id="recentCustomersDatalist"></datalist>
+                    </div>
+                    <div class="form-group" id="saleTierWrapper">
+                        <label class="form-label">شريحة السعر:</label>
+                        <select id="saleTier" class="form-control" onchange="App.onSaleTierChanged()">
+                            <option value="retail">مفرق (تجزئة)</option>
+                            <option value="semi_wholesale">نصف جملة</option>
+                            <option value="wholesale">جملة</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- تلميح نوع النشاط -->
+                <div id="saleBizTip" class="mb-3 p-2 rounded"
+                    style="background:var(--primary-soft); font-size:0.8rem; color:var(--primary);"></div>
+
+                <!-- شريط البيع السريع عبر كيوار كود / باركود -->
+                <div class="p-2 mb-3 rounded d-flex align-items-center gap-2 flex-wrap"
+                    style="background:var(--primary-soft); border:1px solid rgba(37,99,235,0.25);">
+                    <div
+                        style="font-weight:700; color:var(--primary); font-size:0.85rem; display:flex; align-items:center; gap:5px; white-space:nowrap;">
+                        <i class="fa-solid fa-qrcode"></i> بيع سريع بالكيواركود:
+                    </div>
+                    <div style="flex:1; min-width:220px; display:flex; gap:4px;">
+                        <input type="text" id="saleBarcodeScanInput" class="form-control"
+                            placeholder="امسح كيواركود الصنف أو اكتب الكود واضغط Enter..."
+                            onkeydown="if(event.key==='Enter'){event.preventDefault(); App.onSaleBarcodeScanned(this.value); this.value='';}">
+                        <button type="button" class="btn btn-sm btn-primary" onclick="App.openCameraQrScanner('sale')"
+                            title="تشغيل كاميرا مسح الكيواركود"><i class="fa-solid fa-camera"></i> كاميرا</button>
+                    </div>
+                </div>
+
+                <!-- إضافة أصناف -->
+                <div class="card p-3 mb-3" style="background: var(--bg-page);">
+                    <div class="grid-4 gap-2 align-items-end">
+                        <div style="grid-column: span 2;">
+                            <label class="form-label">اختر الصنف:</label>
+                            <select id="saleItemSelect" class="form-control"
+                                onchange="App.onSaleItemSelectChanged()"></select>
+                        </div>
+                        <div>
+                            <label class="form-label" id="saleQtyLabel">الكمية:</label>
+                            <input type="number" id="saleItemQty" class="form-control" min="1" value="1">
+                        </div>
+                        <div>
+                            <label class="form-label">سعر البيع (₪):</label>
+                            <input type="number" id="saleItemPrice" class="form-control" step="0.01">
+                        </div>
+                    </div>
+                    <div class="mt-2 text-start">
+                        <button class="btn btn-sm btn-primary" onclick="App.addSaleItem()"><i
+                                class="fa-solid fa-plus"></i> إضافة الصنف للفاتورة</button>
+                    </div>
+                </div>
+
+                <!-- جدول أصناف الفاتورة -->
+                <table class="data-table mb-3">
+                    <thead>
+                        <tr>
+                            <th>الصنف</th>
+                            <th>الكمية</th>
+                            <th>سعر الوحدة</th>
+                            <th>الإجمالي</th>
+                            <th>حذف</th>
+                        </tr>
+                    </thead>
+                    <tbody id="saleItemsBody"></tbody>
+                </table>
+
+                <div class="d-flex justify-content-between p-2 mb-3 rounded" style="background: var(--primary-soft);">
+                    <strong>إجمالي قيمة الفاتورة:</strong>
+                    <span id="saleTotalSum" style="font-size: 1.25rem; font-weight: 800; color: var(--primary);">0.00
+                        ₪</span>
+                </div>
+
+                <!-- قسم الدفع المختلط بين الحسابات الأربعة -->
+                <div class="card p-3 mb-3">
+                    <div style="font-weight: 700; margin-bottom: 0.5rem;"><i class="fa-solid fa-credit-card"></i> طريقة
+                        التحصيل والسداد (دفع مختلط):</div>
+                    <div id="paymentRowsWrapper"></div>
+                    <button class="btn btn-sm btn-outline mt-2" onclick="App.addPaymentRow()"><i
+                            class="fa-solid fa-plus"></i> إضافة وسيلة دفع أخرى</button>
+                    <div class="d-flex justify-content-between mt-3 pt-2 border-top">
+                        <div>المسدد فعلياً: <strong id="salePaidSum" class="text-success">0.00 ₪</strong></div>
+                        <div>المتبقي دين على العميل: <strong id="saleDueSum" class="text-danger">0.00 ₪</strong></div>
+                    </div>
+                    <!-- إشعار تلقائي ذكي عند وجود فائض دفع لسداد ديون العميل السابقة بالمشروع -->
+                    <div id="saleSurplusNoticeContainer"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="App.closeModal('saleModal')">إلغاء</button>
+                <button class="btn btn-primary" onclick="App.saveSaleInvoice()"><i class="fa-solid fa-check"></i> حفظ
+                    واعتماد الفاتورة وتوليد القيود</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة منبثقة عامة للإضافات والتعديلات -->
+    <div class="modal-overlay" id="genericModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title" id="genModalTitle">عنوان النافذة</div>
+                <button class="modal-close" onclick="App.closeModal('genericModal')">&times;</button>
+            </div>
+            <div class="modal-body" id="genModalBody"></div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="App.closeModal('genericModal')">إغلاق</button>
+                <button class="btn btn-primary" id="genModalSubmitBtn">حفظ</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة منبثقة: إضافة وتعديل موظف وصلاحياته -->
+    <div class="modal-overlay" id="userModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title" id="userModalTitle"><i class="fa-solid fa-user-shield text-primary"></i> إضافة موظف وصلاحيات</div>
+                <button class="modal-close" onclick="App.closeModal('userModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editingUserId">
+                <div class="form-group mb-2">
+                    <label class="form-label">الاسم الكامل للموظف:</label>
+                    <input type="text" id="userFullName" class="form-control" placeholder="مثال: أحمد محمد خالد">
+                </div>
+                <div class="grid-2 gap-2 mb-2">
+                    <div class="form-group">
+                        <label class="form-label">اسم المستخدم (لتسجيل الدخول):</label>
+                        <input type="text" id="userUsername" class="form-control" placeholder="مثال: ahmed" autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">كلمة المرور:</label>
+                        <input type="password" id="userPassword" class="form-control" placeholder="كلمة المرور..." autocomplete="new-password">
+                    </div>
+                </div>
+
+                <div class="form-group mb-3">
+                    <label class="form-label">المشروع المخصص للموظف (يتم تعيين الموظف حسب مشروعه فقط):</label>
+                    <select id="userAssignedProject" class="form-control"></select>
+                    <small class="text-muted" style="font-size:0.75rem;">* الموظف سيعمل فقط داخل نطاق هذا المشروع ما لم تُمنح له صلاحية مشاهدة كل المشاريع.</small>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label font-bold mb-2"><i class="fa-solid fa-key text-primary"></i> تحديد الصلاحيات الممنوحة للموظف:</label>
+                    <div class="permissions-checklist" style="display:flex; flex-direction:column; gap:8px; background:var(--bg-subtle); padding:10px 14px; border-radius:8px; border:1px solid var(--border);">
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.85rem;">
+                            <input type="checkbox" id="perm_canViewSales" checked>
+                            <span><i class="fa-solid fa-cart-shopping text-primary"></i> <strong>مشاهدة المبيعات:</strong> عرض فواتير المبيعات ونقاط البيع وإصدار الفواتير</span>
+                        </label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.85rem;">
+                            <input type="checkbox" id="perm_canViewPurchases">
+                            <span><i class="fa-solid fa-truck-ramp-box text-success"></i> <strong>مشاهدة المشتريات:</strong> عرض فواتير المشتريات والتوريد</span>
+                        </label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.85rem;">
+                            <input type="checkbox" id="perm_canViewAccountsOnly">
+                            <span><i class="fa-solid fa-building-columns text-info"></i> <strong>مشاهدة الحسابات البنكية فقط بدون تعديل:</strong> الاطلاع على أرصدة البنوك والمحافظ الأربعة دون إمكانية التعديل</span>
+                        </label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.85rem;">
+                            <input type="checkbox" id="perm_canManageInventory">
+                            <span><i class="fa-solid fa-boxes-stacked text-warning"></i> <strong>إدخال أصناف:</strong> إضافة وتعديل وحذف الأصناف بالمخزون ومسح الكيواركود</span>
+                        </label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.85rem;">
+                            <input type="checkbox" id="perm_canManageSuppliers">
+                            <span><i class="fa-solid fa-truck-field text-secondary"></i> <strong>إدخال موردين:</strong> إضافة وتعديل بيانات الموردين والمستحقات</span>
+                        </label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.85rem;">
+                            <input type="checkbox" id="perm_canManageCustomers">
+                            <span><i class="fa-solid fa-users text-primary"></i> <strong>إدخال عملاء ذمم:</strong> إضافة وتعديل العملاء وسجلات الذمم المالية</span>
+                        </label>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.85rem;">
+                            <input type="checkbox" id="perm_canViewAllProjects">
+                            <span><i class="fa-solid fa-diagram-project text-danger"></i> <strong>مشاهدة كل المشاريع:</strong> السماح بالتبديل بين المشاريع (إذا لم تُفعل يتقيد بمشروعه فقط)</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="App.closeModal('userModal')">إلغاء</button>
+                <button class="btn btn-primary" onclick="App.saveSystemUser()"><i class="fa-solid fa-check"></i> حفظ بيانات الموظف والصلاحيات</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- شاشة تسجيل الدخول المتكاملة (Firebase Auth للمدير + اسم مستخدم للموظفين) -->
+    <div id="loginOverlay" class="login-overlay-backdrop" style="display:none;">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="brand-icon" style="width:50px; height:50px; margin:0 auto 0.75rem auto; font-size:1.4rem;">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <h2 style="font-size:1.35rem; font-weight:800; margin-bottom:0.25rem;">تسجيل الدخول إلى النظام المحاسبي</h2>
+                <p style="font-size:0.82rem; color:var(--text-muted); margin:0;">اختر نوع الحساب للمتابعة</p>
+            </div>
+
+            <!-- تبويبات اختيار نوع الدخول -->
+            <div class="login-tabs">
+                <button class="login-tab-btn active" id="tabBtnAdmin" onclick="App.switchLoginTab('admin')">
+                    <i class="fa-solid fa-user-tie"></i> المدير العام (Firebase)
+                </button>
+                <button class="login-tab-btn" id="tabBtnEmployee" onclick="App.switchLoginTab('employee')">
+                    <i class="fa-solid fa-user-gear"></i> موظف النظام
+                </button>
+            </div>
+
+            <!-- نموذج دخول المدير العام (Firebase Authentication) -->
+            <form id="adminLoginForm" onsubmit="App.submitAdminLogin(event)">
+                <div class="form-group mb-2">
+                    <label class="form-label" style="font-size:0.8rem;">البريد الإلكتروني للمدير (Firebase Auth):</label>
+                    <div style="position:relative;">
+                        <input type="email" id="adminEmailInput" class="form-control" placeholder="admin@example.com" required style="padding-right:32px;">
+                        <i class="fa-solid fa-envelope" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); color:var(--text-muted); font-size:0.85rem;"></i>
+                    </div>
+                </div>
+                <div class="form-group mb-3">
+                    <label class="form-label" style="font-size:0.8rem;">كلمة المرور:</label>
+                    <div style="position:relative;">
+                        <input type="password" id="adminPassInput" class="form-control" placeholder="••••••••" required style="padding-right:32px;">
+                        <i class="fa-solid fa-lock" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); color:var(--text-muted); font-size:0.85rem;"></i>
+                    </div>
+                </div>
+
+                <div id="adminLoginAlert" style="display:none; padding:8px 12px; border-radius:6px; font-size:0.8rem; margin-bottom:12px;"></div>
+
+                <button type="submit" class="btn btn-primary w-100" id="adminLoginSubmitBtn" style="padding:0.7rem; font-weight:700;">
+                    <i class="fa-solid fa-right-to-bracket"></i> تسجيل الدخول كمدير
+                </button>
+            </form>
+
+            <!-- نموذج دخول الموظف (اسم مستخدم داخل النظام) -->
+            <form id="employeeLoginForm" onsubmit="App.submitEmployeeLogin(event)" style="display:none;">
+                <div class="form-group mb-2">
+                    <label class="form-label" style="font-size:0.8rem;">اسم المستخدم:</label>
+                    <div style="position:relative;">
+                        <input type="text" id="empUsernameInput" class="form-control" placeholder="اكتب اسم المستخدم..." required style="padding-right:32px;" autocomplete="off">
+                        <i class="fa-solid fa-user" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); color:var(--text-muted); font-size:0.85rem;"></i>
+                    </div>
+                </div>
+                <div class="form-group mb-3">
+                    <label class="form-label" style="font-size:0.8rem;">كلمة المرور:</label>
+                    <div style="position:relative;">
+                        <input type="password" id="empPassInput" class="form-control" placeholder="••••••••" required style="padding-right:32px;" autocomplete="off">
+                        <i class="fa-solid fa-key" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); color:var(--text-muted); font-size:0.85rem;"></i>
+                    </div>
+                </div>
+
+                <div id="empLoginAlert" style="display:none; padding:8px 12px; border-radius:6px; font-size:0.8rem; margin-bottom:12px;"></div>
+
+                <button type="submit" class="btn btn-primary w-100" id="empLoginSubmitBtn" style="padding:0.7rem; font-weight:700;">
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i> دخول إلى حساب الموظف
+                </button>
+                <div class="text-center mt-2" style="font-size:0.75rem; color:var(--text-muted);">
+                    يتم تزويدك باسم المستخدم وكلمة المرور وصلاحيات مشروعك من قِبل المدير العام.
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- المنطق البرمجي -->
+    <script src="js.js"></script>
+</body>
+
+</html>
